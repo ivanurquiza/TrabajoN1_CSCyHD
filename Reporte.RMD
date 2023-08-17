@@ -53,6 +53,12 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
 head(dfmain)
 
 ```
+## TESTEO GRAFICO
+```{r}
+ggplot(geo_caba) +
+  geom_sf()
+```
+
 
 ### Chequeamos la presencia de missing values en el dataset
 
