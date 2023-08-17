@@ -6,18 +6,19 @@ output: html_document
 ---
 
 ### Importación de librerías
+
 ```{r, echo = FALSE}
 library(tidyverse)
 library(lubridate)
-
-
+library(ggplot2)
+library(sf)
 ```
 
 ### Importación del del dataset primario
 
-- Importación de archivo de nomenclatura de codificación para departamentos 
-- Matcheamos el nombre del departamento
-- *Visualizamos los primeros registros del dataset*
+-   Importación de archivo de nomenclatura de codificación para departamentos
+-   Matcheamos el nombre del departamento
+-   *Visualizamos los primeros registros del dataset*
 
 ```{r}
 
@@ -27,16 +28,24 @@ cod_deptos <- read_csv("./Data/diccionario_cod_depto.csv") %>%
 cod_clae <- read_csv("./Data/diccionario_clae2.csv") %>% 
             select(clae2, letra_desc)
 
+datos_geo <- read_sf("./Data/departamentos_arg.geojson") %>% 
+             select(codigo_departamento_indec, geometry) %>% 
+             mutate(codigo_departamento_indec = as.numeric(codigo_departamento_indec))
+
 dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>% 
         left_join(cod_deptos, by="codigo_departamento_indec") %>% 
         left_join(cod_clae, by="clae2") %>% 
+        left_join(datos_geo, by = "codigo_departamento_indec") %>% 
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
+
 
 # Primeros registros en dfmain
 print(head(dfmain))
 
 ```
+
 ### Chequeamos la presencia de missing values en el dataset
+
 ```{r}
 cat("Cantidad de registros: ", nrow(dfmain), "\n")
 
@@ -49,13 +58,12 @@ dfmain <- na.omit(dfmain)
 
 ```
 
+# 1. Los departamentos con mayores salarios, expresados en un mapa coroplético.
 
-# 1.	Los departamentos con mayores salarios, expresados en un mapa coroplético. 
+Obtenemos por agrupación basada en los departamentos el promedio de los salarios. Para que la muestra no este sesgada por saltos discresionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros al último año (media de los últimos 12 registros)
 
-Obtenemos por agrupación basada en los departamentos el promedio de los salarios.
-Para que la muestra no este sesgada por saltos discresionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros al último año (media de los últimos 12 registros)
+-   
 
-- 
 ```{r}
 
 # Chequeamos datatype de los elementos de la columna
@@ -88,7 +96,7 @@ subdf_act_salarios <- dfmain %>%
                   head(n=5)
   
 
-subdf_act_salarios
+print(subdf_act_salarios)
 ```
 
 ```{r}
@@ -98,12 +106,3 @@ subdf_act_serie <- dfmain %>%
 
 subdf_act_serie
 ```
-
-
-
-
-
-
-
-
-
