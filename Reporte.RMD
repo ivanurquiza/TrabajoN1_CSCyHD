@@ -19,6 +19,15 @@ library(sf)
 -   Importación de archivo de nomenclatura de codificación para departamentos
 -   Matcheamos el nombre del departamento
 -   *Visualizamos los primeros registros del dataset*
+```{r}
+geo_caba <- read_sf("./Data/ProvinciasArgentina.geojson") %>% 
+          filter(nombre == "Capital Federal") %>% 
+          select(nombre, geometry) %>% 
+          mutate(nombre= "CABA")
+          
+geo_caba
+```
+
 
 ```{r}
 
@@ -36,11 +45,12 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
         left_join(cod_deptos, by="codigo_departamento_indec") %>% 
         left_join(cod_clae, by="clae2") %>% 
         left_join(datos_geo, by = "codigo_departamento_indec") %>% 
+        mutate(geometry = ifelse(codigo_departamento_indec==2000, geo_caba[1,2], geometry)) %>% #Esta línea es la que mete CABA
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
 
 
 # Primeros registros en dfmain
-print(head(dfmain))
+head(dfmain)
 
 ```
 

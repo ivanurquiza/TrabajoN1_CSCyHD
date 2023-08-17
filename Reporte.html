@@ -368,7 +368,8 @@ Urquiza</h4>
 ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()
-## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
+## Linking to GEOS 3.11.0, GDAL 3.5.3, PROJ 9.1.0; sf_use_s2() is TRUE</code></pre>
 </div>
 <div id="importación-del-del-dataset-primario" class="section level3">
 <h3>Importación del del dataset primario</h3>
@@ -378,6 +379,21 @@ departamentos</li>
 <li>Matcheamos el nombre del departamento</li>
 <li><em>Visualizamos los primeros registros del dataset</em></li>
 </ul>
+<pre class="r"><code>geo_caba &lt;- read_sf(&quot;./Data/ProvinciasArgentina.geojson&quot;) %&gt;% 
+          filter(nombre == &quot;Capital Federal&quot;) %&gt;% 
+          select(nombre, geometry) %&gt;% 
+          mutate(nombre= &quot;CABA&quot;)
+          
+geo_caba</code></pre>
+<pre><code>## Simple feature collection with 1 feature and 1 field
+## Geometry type: POLYGON
+## Dimension:     XY
+## Bounding box:  xmin: -58.53275 ymin: -34.70528 xmax: -58.33603 ymax: -34.53371
+## Geodetic CRS:  WGS 84
+## # A tibble: 1 × 2
+##   nombre                                                                geometry
+## * &lt;chr&gt;                                                            &lt;POLYGON [°]&gt;
+## 1 CABA   ((-58.41293 -34.56567, -58.46581 -34.53371, -58.50117 -34.54955, -58.5…</code></pre>
 <pre class="r"><code>cod_deptos &lt;- read_csv(&quot;./Data/diccionario_cod_depto.csv&quot;) %&gt;% 
             select(codigo_departamento_indec, nombre_departamento_indec)</code></pre>
 <pre><code>## Rows: 510 Columns: 4
@@ -398,9 +414,15 @@ departamentos</li>
 ## 
 ## ℹ Use `spec()` to retrieve the full column specification for this data.
 ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code>dfmain &lt;- read_csv(&quot;./Data/w_mean_depto_tot_emp_clae2.csv&quot;) %&gt;% 
+<pre class="r"><code>datos_geo &lt;- read_sf(&quot;./Data/departamentos_arg.geojson&quot;) %&gt;% 
+             select(codigo_departamento_indec, geometry) %&gt;% 
+             mutate(codigo_departamento_indec = as.numeric(codigo_departamento_indec))
+
+dfmain &lt;- read_csv(&quot;./Data/w_mean_depto_tot_emp_clae2.csv&quot;) %&gt;% 
         left_join(cod_deptos, by=&quot;codigo_departamento_indec&quot;) %&gt;% 
         left_join(cod_clae, by=&quot;clae2&quot;) %&gt;% 
+        left_join(datos_geo, by = &quot;codigo_departamento_indec&quot;) %&gt;% 
+        mutate(geometry = ifelse(codigo_departamento_indec==2000, geo_caba[1,2], geometry)) %&gt;% #Esta línea es la que mete CABA
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())</code></pre>
 <pre><code>## Rows: 3439322 Columns: 5
 ## ── Column specification ────────────────────────────────────────────────────────
@@ -411,8 +433,8 @@ departamentos</li>
 ## ℹ Use `spec()` to retrieve the full column specification for this data.
 ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 <pre class="r"><code># Primeros registros en dfmain
-print(head(dfmain))</code></pre>
-<pre><code>## # A tibble: 6 × 7
+head(dfmain)</code></pre>
+<pre><code>## # A tibble: 6 × 8
 ##   fecha      codigo_departamento_indec nombre_departamento_in…¹ clae2 letra_desc
 ##   &lt;date&gt;                         &lt;dbl&gt; &lt;chr&gt;                    &lt;dbl&gt; &lt;chr&gt;     
 ## 1 2014-01-01                      2000 CABA                         1 AGRICULTU…
@@ -422,7 +444,7 @@ print(head(dfmain))</code></pre>
 ## 5 2014-01-01                      2000 CABA                         6 EXPLOTACI…
 ## 6 2014-01-01                      2000 CABA                         7 EXPLOTACI…
 ## # ℹ abbreviated name: ¹​nombre_departamento_indec
-## # ℹ 2 more variables: id_provincia_indec &lt;dbl&gt;, w_mean &lt;dbl&gt;</code></pre>
+## # ℹ 3 more variables: id_provincia_indec &lt;dbl&gt;, w_mean &lt;dbl&gt;, geometry &lt;list&gt;</code></pre>
 </div>
 <div id="chequeamos-la-presencia-de-missing-values-en-el-dataset" class="section level3">
 <h3>Chequeamos la presencia de missing values en el dataset</h3>
@@ -435,8 +457,8 @@ print(head(dfmain))</code></pre>
 ##                         0                      9408                      9408 
 ##                     clae2                letra_desc        id_provincia_indec 
 ##                         0                         0                      9408 
-##                    w_mean 
-##                         0</code></pre>
+##                    w_mean                  geometry 
+##                         0                      9408</code></pre>
 <pre class="r"><code># Procedemos a borrar dichos registros por no ser significativos
 
 dfmain &lt;- na.omit(dfmain)</code></pre>
@@ -486,7 +508,7 @@ subdf_depto &lt;- dfmain %&gt;%
                   head(n=5)</code></pre>
 <pre><code>## `summarise()` has grouped output by &#39;clae2&#39;. You can override using the
 ## `.groups` argument.</code></pre>
-<pre class="r"><code>subdf_act_salarios</code></pre>
+<pre class="r"><code>print(subdf_act_salarios)</code></pre>
 <pre><code>## # A tibble: 5 × 3
 ## # Groups:   clae2 [5]
 ##   clae2 letra_desc                                                  w_mean_lasty
