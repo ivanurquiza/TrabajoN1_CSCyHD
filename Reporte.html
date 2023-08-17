@@ -388,9 +388,20 @@ departamentos</li>
 ## 
 ## ℹ Use `spec()` to retrieve the full column specification for this data.
 ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>cod_clae &lt;- read_csv(&quot;./Data/diccionario_clae2.csv&quot;) %&gt;% 
+            select(clae2, letra_desc)</code></pre>
+<pre><code>## Rows: 86 Columns: 4
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (3): clae2_desc, letra, letra_desc
+## dbl (1): clae2
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 <pre class="r"><code>dfmain &lt;- read_csv(&quot;./Data/w_mean_depto_tot_emp_clae2.csv&quot;) %&gt;% 
         left_join(cod_deptos, by=&quot;codigo_departamento_indec&quot;) %&gt;% 
-        select(fecha, codigo_departamento_indec,nombre_departamento_indec, everything())</code></pre>
+        left_join(cod_clae, by=&quot;clae2&quot;) %&gt;% 
+        select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())</code></pre>
 <pre><code>## Rows: 3439322 Columns: 5
 ## ── Column specification ────────────────────────────────────────────────────────
 ## Delimiter: &quot;,&quot;
@@ -401,24 +412,108 @@ departamentos</li>
 ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 <pre class="r"><code># Primeros registros en dfmain
 print(head(dfmain))</code></pre>
-<pre><code>## # A tibble: 6 × 6
-##   fecha      codigo_departamento_indec nombre_departamento_…¹ id_provincia_indec
-##   &lt;date&gt;                         &lt;dbl&gt; &lt;chr&gt;                               &lt;dbl&gt;
-## 1 2014-01-01                      2000 CABA                                    2
-## 2 2014-01-01                      2000 CABA                                    2
-## 3 2014-01-01                      2000 CABA                                    2
-## 4 2014-01-01                      2000 CABA                                    2
-## 5 2014-01-01                      2000 CABA                                    2
-## 6 2014-01-01                      2000 CABA                                    2
+<pre><code>## # A tibble: 6 × 7
+##   fecha      codigo_departamento_indec nombre_departamento_in…¹ clae2 letra_desc
+##   &lt;date&gt;                         &lt;dbl&gt; &lt;chr&gt;                    &lt;dbl&gt; &lt;chr&gt;     
+## 1 2014-01-01                      2000 CABA                         1 AGRICULTU…
+## 2 2014-01-01                      2000 CABA                         2 AGRICULTU…
+## 3 2014-01-01                      2000 CABA                         3 AGRICULTU…
+## 4 2014-01-01                      2000 CABA                         5 EXPLOTACI…
+## 5 2014-01-01                      2000 CABA                         6 EXPLOTACI…
+## 6 2014-01-01                      2000 CABA                         7 EXPLOTACI…
 ## # ℹ abbreviated name: ¹​nombre_departamento_indec
-## # ℹ 2 more variables: clae2 &lt;dbl&gt;, w_mean &lt;dbl&gt;</code></pre>
+## # ℹ 2 more variables: id_provincia_indec &lt;dbl&gt;, w_mean &lt;dbl&gt;</code></pre>
+</div>
+<div id="chequeamos-la-presencia-de-missing-values-en-el-dataset" class="section level3">
+<h3>Chequeamos la presencia de missing values en el dataset</h3>
+<pre class="r"><code>cat(&quot;Cantidad de registros: &quot;, nrow(dfmain), &quot;\n&quot;)</code></pre>
+<pre><code>## Cantidad de registros:  3439322</code></pre>
+<pre class="r"><code>print(&quot;NaNs por campo&quot;)</code></pre>
+<pre><code>## [1] &quot;NaNs por campo&quot;</code></pre>
+<pre class="r"><code>colSums(is.na(dfmain))</code></pre>
+<pre><code>##                     fecha codigo_departamento_indec nombre_departamento_indec 
+##                         0                      9408                      9408 
+##                     clae2                letra_desc        id_provincia_indec 
+##                         0                         0                      9408 
+##                    w_mean 
+##                         0</code></pre>
+<pre class="r"><code># Procedemos a borrar dichos registros por no ser significativos
+
+dfmain &lt;- na.omit(dfmain)</code></pre>
 </div>
 <div id="los-departamentos-con-mayores-salarios-expresados-en-un-mapa-coroplético." class="section level1">
 <h1>1. Los departamentos con mayores salarios, expresados en un mapa
 coroplético.</h1>
+<p>Obtenemos por agrupación basada en los departamentos el promedio de
+los salarios. Para que la muestra no este sesgada por saltos
+discresionales en los salarios promedio del último período registrado
+(04/2023), acotamos la muestra a los registros al último año (media de
+los últimos 12 registros)</p>
 <ul>
-<li>Obtenemos por agrupación basada en los departamentos</li>
+<li></li>
 </ul>
+<pre class="r"><code># Chequeamos datatype de los elementos de la columna
+cat(&quot;Tipo de dato: &quot;, class(dfmain$fecha), &quot;\n&quot;)</code></pre>
+<pre><code>## Tipo de dato:  Date</code></pre>
+<pre class="r"><code># Detectamos rango de las fechas del dataset
+range(dfmain$fecha)</code></pre>
+<pre><code>## [1] &quot;2014-01-01&quot; &quot;2023-04-01&quot;</code></pre>
+<pre class="r"><code># Acotamos la muestra
+
+subdf_depto &lt;- dfmain %&gt;% 
+                  filter(fecha &gt; (max(fecha) - 365)) %&gt;% 
+                  group_by(codigo_departamento_indec, nombre_departamento_indec) %&gt;% 
+                  summarise(w_mean_lasty = round(mean(w_mean)))</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;codigo_departamento_indec&#39;. You can
+## override using the `.groups` argument.</code></pre>
+<pre class="r"><code>head(subdf_depto)</code></pre>
+<pre><code>## # A tibble: 6 × 3
+## # Groups:   codigo_departamento_indec [6]
+##   codigo_departamento_indec nombre_departamento_indec w_mean_lasty
+##                       &lt;dbl&gt; &lt;chr&gt;                            &lt;dbl&gt;
+## 1                      2000 CABA                            386068
+## 2                      6007 Adolfo Alsina                   191196
+## 3                      6014 Adolfo Gonzales Chaves          127856
+## 4                      6021 Alberti                         152415
+## 5                      6028 Almirante Brown                 260686
+## 6                      6035 Avellaneda                      273087</code></pre>
+<p>Por sector de actividad</p>
+<pre class="r"><code>subdf_act_salarios &lt;- dfmain %&gt;% 
+                  filter(fecha &gt; (max(fecha) - 365)) %&gt;% 
+                  group_by(clae2, letra_desc) %&gt;% 
+                  summarise(w_mean_lasty = round(mean(w_mean))) %&gt;% 
+                  arrange(w_mean_lasty) %&gt;% 
+                  head(n=5)</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;clae2&#39;. You can override using the
+## `.groups` argument.</code></pre>
+<pre class="r"><code>subdf_act_salarios</code></pre>
+<pre><code>## # A tibble: 5 × 3
+## # Groups:   clae2 [5]
+##   clae2 letra_desc                                                  w_mean_lasty
+##   &lt;dbl&gt; &lt;chr&gt;                                                              &lt;dbl&gt;
+## 1    90 SERVICIOS  ARTÍSTICOS, CULTURALES, DEPORTIVOS  Y DE ESPARC…        56243
+## 2    75 SERVICIOS PROFESIONALES, CIENTÍFICOS Y TÉCNICOS                    70317
+## 3    81 ACTIVIDADES ADMINISTRATIVAS Y SERVICIOS DE APOYO                   74339
+## 4    88 SALUD HUMANA Y SERVICIOS SOCIALES                                  77593
+## 5    91 SERVICIOS  ARTÍSTICOS, CULTURALES, DEPORTIVOS  Y DE ESPARC…        77752</code></pre>
+<pre class="r"><code>subdf_act_serie &lt;- dfmain %&gt;% 
+                  select(fecha, clae2, letra_desc, w_mean)
+
+subdf_act_serie</code></pre>
+<pre><code>## # A tibble: 3,429,914 × 4
+##    fecha      clae2 letra_desc                                         w_mean
+##    &lt;date&gt;     &lt;dbl&gt; &lt;chr&gt;                                               &lt;dbl&gt;
+##  1 2014-01-01     1 AGRICULTURA, GANADERÍA, CAZA, SILVICULTURA Y PESCA  13085
+##  2 2014-01-01     2 AGRICULTURA, GANADERÍA, CAZA, SILVICULTURA Y PESCA  10081
+##  3 2014-01-01     3 AGRICULTURA, GANADERÍA, CAZA, SILVICULTURA Y PESCA  17837
+##  4 2014-01-01     5 EXPLOTACION DE MINAS Y CANTERAS                     57688
+##  5 2014-01-01     6 EXPLOTACION DE MINAS Y CANTERAS                     62211
+##  6 2014-01-01     7 EXPLOTACION DE MINAS Y CANTERAS                     50522
+##  7 2014-01-01     8 EXPLOTACION DE MINAS Y CANTERAS                     50411
+##  8 2014-01-01     9 EXPLOTACION DE MINAS Y CANTERAS                     41279
+##  9 2014-01-01    10 INDUSTRIA MANUFACTURERA                             16659
+## 10 2014-01-01    11 INDUSTRIA MANUFACTURERA                             23518
+## # ℹ 3,429,904 more rows</code></pre>
 </div>
 
 
