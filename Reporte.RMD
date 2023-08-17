@@ -1,1 +1,109 @@
-# Trabajo N1
+---
+title: "Trabajo N°1"
+author: "Integrantes: Tomás Baigorria e Iván Robles Urquiza"
+date: 'Agosto 2023'
+output: html_document
+---
+
+### Importación de librerías
+```{r, echo = FALSE}
+library(tidyverse)
+library(lubridate)
+
+
+```
+
+### Importación del del dataset primario
+
+- Importación de archivo de nomenclatura de codificación para departamentos 
+- Matcheamos el nombre del departamento
+- *Visualizamos los primeros registros del dataset*
+
+```{r}
+
+cod_deptos <- read_csv("./Data/diccionario_cod_depto.csv") %>% 
+            select(codigo_departamento_indec, nombre_departamento_indec)
+
+cod_clae <- read_csv("./Data/diccionario_clae2.csv") %>% 
+            select(clae2, letra_desc)
+
+dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>% 
+        left_join(cod_deptos, by="codigo_departamento_indec") %>% 
+        left_join(cod_clae, by="clae2") %>% 
+        select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
+
+# Primeros registros en dfmain
+print(head(dfmain))
+
+```
+### Chequeamos la presencia de missing values en el dataset
+```{r}
+cat("Cantidad de registros: ", nrow(dfmain), "\n")
+
+print("NaNs por campo")
+colSums(is.na(dfmain))
+
+# Procedemos a borrar dichos registros por no ser significativos
+
+dfmain <- na.omit(dfmain)
+
+```
+
+
+# 1.	Los departamentos con mayores salarios, expresados en un mapa coroplético. 
+
+Obtenemos por agrupación basada en los departamentos el promedio de los salarios.
+Para que la muestra no este sesgada por saltos discresionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros al último año (media de los últimos 12 registros)
+
+- 
+```{r}
+
+# Chequeamos datatype de los elementos de la columna
+cat("Tipo de dato: ", class(dfmain$fecha), "\n")
+
+# Detectamos rango de las fechas del dataset
+range(dfmain$fecha)
+
+# Acotamos la muestra
+
+subdf_depto <- dfmain %>% 
+                  filter(fecha > (max(fecha) - 365)) %>% 
+                  group_by(codigo_departamento_indec, nombre_departamento_indec) %>% 
+                  summarise(w_mean_lasty = round(mean(w_mean)))
+
+
+head(subdf_depto)
+                  
+```
+
+Por sector de actividad
+
+```{r}
+
+subdf_act_salarios <- dfmain %>% 
+                  filter(fecha > (max(fecha) - 365)) %>% 
+                  group_by(clae2, letra_desc) %>% 
+                  summarise(w_mean_lasty = round(mean(w_mean))) %>% 
+                  arrange(w_mean_lasty) %>% 
+                  head(n=5)
+  
+
+subdf_act_salarios
+```
+
+```{r}
+
+subdf_act_serie <- dfmain %>% 
+                  select(fecha, clae2, letra_desc, w_mean)
+
+subdf_act_serie
+```
+
+
+
+
+
+
+
+
+
