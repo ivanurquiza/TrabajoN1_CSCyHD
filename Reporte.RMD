@@ -45,7 +45,7 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
         left_join(cod_deptos, by="codigo_departamento_indec") %>% 
         left_join(cod_clae, by="clae2") %>% 
         left_join(datos_geo, by = "codigo_departamento_indec") %>% 
-        mutate(geometry = ifelse(codigo_departamento_indec==2000, geo_caba[1,2], geometry)) %>% #Esta línea es la que mete CABA
+        #mutate(geometry = ifelse(codigo_departamento_indec==2000, geo_caba[1,2], geometry)) %>% #Esta línea es la que mete CABA
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
 
 
@@ -53,12 +53,6 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
 head(dfmain)
 
 ```
-## TESTEO GRAFICO
-```{r}
-ggplot(geo_caba) +
-  geom_sf()
-```
-
 
 ### Chequeamos la presencia de missing values en el dataset
 
@@ -90,14 +84,26 @@ range(dfmain$fecha)
 
 # Acotamos la muestra
 
+# ACÁ HABRÍA QUE METER CABA
+
 subdf_depto <- dfmain %>% 
                   filter(fecha > (max(fecha) - 365)) %>% 
-                  group_by(codigo_departamento_indec, nombre_departamento_indec) %>% 
+                  group_by(codigo_departamento_indec, nombre_departamento_indec, geometry) %>% 
                   summarise(w_mean_lasty = round(mean(w_mean)))
 
 
 head(subdf_depto)
                   
+```
+
+```{r}
+
+ggplot(subdf_depto, aes(geometry = geometry)) +
+  geom_sf()
+
+ggplot(geo_caba, aes(geometry = geometry)) +
+  geom_sf()
+
 ```
 
 Por sector de actividad

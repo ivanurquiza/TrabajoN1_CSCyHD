@@ -446,6 +446,13 @@ head(dfmain)</code></pre>
 ## # ℹ abbreviated name: ¹​nombre_departamento_indec
 ## # ℹ 3 more variables: id_provincia_indec &lt;dbl&gt;, w_mean &lt;dbl&gt;, geometry &lt;list&gt;</code></pre>
 </div>
+<div id="testeo-grafico" class="section level2">
+<h2>TESTEO GRAFICO</h2>
+<pre class="r"><code>#ggplot(dfmain, aes(geometry = geometry)) +
+#  geom_sf()
+
+class(dfmain$geometry)</code></pre>
+<pre><code>## [1] &quot;list&quot;</code></pre>
 <div id="chequeamos-la-presencia-de-missing-values-en-el-dataset" class="section level3">
 <h3>Chequeamos la presencia de missing values en el dataset</h3>
 <pre class="r"><code>cat(&quot;Cantidad de registros: &quot;, nrow(dfmain), &quot;\n&quot;)</code></pre>
@@ -462,6 +469,7 @@ head(dfmain)</code></pre>
 <pre class="r"><code># Procedemos a borrar dichos registros por no ser significativos
 
 dfmain &lt;- na.omit(dfmain)</code></pre>
+</div>
 </div>
 <div id="los-departamentos-con-mayores-salarios-expresados-en-un-mapa-coroplético." class="section level1">
 <h1>1. Los departamentos con mayores salarios, expresados en un mapa
