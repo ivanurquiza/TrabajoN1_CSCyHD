@@ -12,6 +12,9 @@ library(tidyverse)
 library(lubridate)
 library(ggplot2)
 library(sf)
+library(viridis)
+library(scales)
+library(paletteer)
 ```
 
 ### Importación del del dataset primario
@@ -49,12 +52,13 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
 
 
-# Primeros registros en dfmain
-head(dfmain)
+# Observamos algunos registros de dfmain
+
+print(sample_n(dfmain, size = 10))
 
 ```
 
-### Chequeamos la presencia de missing values en el dataset
+### Chequeamos la presencia de missing values y de valores inválidos en el dataset.
 
 ```{r}
 cat("Cantidad de registros: ", nrow(dfmain), "\n")
@@ -66,11 +70,18 @@ colSums(is.na(dfmain))
 
 dfmain <- na.omit(dfmain)
 
+#Observamos la presencia de valores inválidos o absurdos en algunos departamentos (-99)
+
+ejemplo <- dfmain %>% arrange(w_mean) %>% 
+  slice(1:5)
+
+print(ejemplo)
+
 ```
 
 # 1. Los departamentos con mayores salarios, expresados en un mapa coroplético.
 
-Obtenemos por agrupación basada en los departamentos el promedio de los salarios. Para que la muestra no este sesgada por saltos discresionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros al último año (media de los últimos 12 registros)
+Obtenemos por agrupación basada en los departamentos el promedio de los salarios. Para que la muestra no este sesgada por saltos discrecionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros dell último año (media de los últimos 12 registros)
 
 -   
 
@@ -98,11 +109,18 @@ head(subdf_depto)
 
 ```{r}
 
-ggplot(subdf_depto, aes(geometry = geometry)) +
-  geom_sf()
+ggplot(subdf_depto
+        , aes(geometry = geometry)) +
+        geom_sf(aes(fill = w_mean_lasty), color = NA) +
+        theme_void() +
+        scale_fill_paletteer_c("grDevices::Geyser", labels = label_comma()) +
+        labs(fill = "Salario promedio") +
+        ggtitle("Promedio salarial interanual por departamento")
+        
+  
 
-ggplot(geo_caba, aes(geometry = geometry)) +
-  geom_sf()
+#ggplot(geo_caba, aes(geometry = geometry)) +
+#  geom_sf()
 
 ```
 
