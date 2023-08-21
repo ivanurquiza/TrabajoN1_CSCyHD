@@ -22,15 +22,6 @@ library(paletteer)
 -   Importación de archivo de nomenclatura de codificación para departamentos
 -   Matcheamos el nombre del departamento
 -   *Visualizamos los primeros registros del dataset*
-```{r}
-geo_caba <- read_sf("./Data/ProvinciasArgentina.geojson") %>% 
-          filter(nombre == "Capital Federal") %>% 
-          select(nombre, geometry) %>% 
-          mutate(nombre= "CABA")
-          
-geo_caba
-```
-
 
 ```{r}
 
@@ -43,6 +34,11 @@ cod_clae <- read_csv("./Data/diccionario_clae2.csv") %>%
 datos_geo <- read_sf("./Data/departamentos_arg.geojson") %>% 
              select(codigo_departamento_indec, geometry) %>% 
              mutate(codigo_departamento_indec = as.numeric(codigo_departamento_indec))
+
+#geo_caba <- read_sf("./Data/ProvinciasArgentina.geojson") %>% 
+#          filter(nombre == "Capital Federal") %>% 
+#          select(nombre, geometry) %>% 
+#          mutate(nombre= "CABA")
 
 dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>% 
         left_join(cod_deptos, by="codigo_departamento_indec") %>% 
@@ -77,6 +73,9 @@ ejemplo <- dfmain %>% arrange(w_mean) %>%
 
 print(ejemplo)
 
+# Eliminamos los valores negativos
+
+dfmain <- dfmain %>% filter(w_mean > 0)
 ```
 
 # 1. Los departamentos con mayores salarios, expresados en un mapa coroplético.
@@ -91,11 +90,10 @@ Obtenemos por agrupación basada en los departamentos el promedio de los salario
 cat("Tipo de dato: ", class(dfmain$fecha), "\n")
 
 # Detectamos rango de las fechas del dataset
+
 range(dfmain$fecha)
 
 # Acotamos la muestra
-
-# ACÁ HABRÍA QUE METER CABA
 
 subdf_depto <- dfmain %>% 
                   filter(fecha > (max(fecha) - 365)) %>% 
@@ -116,33 +114,57 @@ ggplot(subdf_depto
         scale_fill_paletteer_c("grDevices::Geyser", labels = label_comma()) +
         labs(fill = "Salario promedio") +
         ggtitle("Promedio salarial interanual por departamento")
-        
-  
-
-#ggplot(geo_caba, aes(geometry = geometry)) +
-#  geom_sf()
 
 ```
 
-Por sector de actividad
+### Por sector de actividad
 
 ```{r}
 
 subdf_act_salarios <- dfmain %>% 
                   filter(fecha > (max(fecha) - 365)) %>% 
-                  group_by(clae2, letra_desc) %>% 
+                  group_by(letra_desc) %>% 
                   summarise(w_mean_lasty = round(mean(w_mean))) %>% 
                   arrange(w_mean_lasty) %>% 
-                  head(n=5)
-  
+                  head(n=5) %>% 
+                  mutate(letra_desc = fct_inorder(letra_desc))
 
-print(subdf_act_salarios)
+
+ggplot(data = subdf_act_salarios, aes(x = letra_desc, y = w_mean_lasty, fill = letra_desc)) +
+         geom_col() +
+         scale_fill_paletteer_d("lisa::OskarSchlemmer") +
+         labs(x = "",
+              y = "Salario mensual promedio") +
+         scale_x_discrete(labels = label_wrap(10)) +
+         scale_y_continuous(labels = comma) +
+         theme_minimal() +
+         guides(fill = "none") +
+         ggtitle("Top 5 rubros con menores remuneraciones")
+
 ```
 
 ```{r}
+#Chequeamos los diferentes sectores
+
+print(unique(dfmain$letra_desc))
 
 subdf_act_serie <- dfmain %>% 
-                  select(fecha, clae2, letra_desc, w_mean)
+                select(fecha, letra_desc, w_mean) %>% 
+                filter(letra_desc == "EXPLOTACION DE MINAS Y CANTERAS"
+                       | letra_desc == "SERVICIO DE TRANSPORTE Y ALMACENAMIENTO"
+                       | letra_desc == "CONSTRUCCIÓN"
+                       | letra_desc == "ENSEÑANZA") %>% 
+                group_by(fecha, letra_desc) %>% 
+                summarise(w_mean = mean(w_mean))
 
-subdf_act_serie
+ggplot(data = subdf_act_serie) +
+    geom_line(aes(x = fecha, y = w_mean, group = letra_desc, color = letra_desc), size = 1.10) +
+    theme_minimal() +
+    scale_y_continuous(labels = comma) +
+    scale_color_viridis_d(labels = label_wrap(15)) +
+    ggtitle("Evolución histórica de los salarios nominales en 4 sectores") +
+    labs(x = "Año", 
+         y = "Salario mensual promedio",
+         color = "Sector")
+
 ```
