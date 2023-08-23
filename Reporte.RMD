@@ -5,26 +5,36 @@ date: 'Agosto 2023'
 output: html_document
 ---
 
-### Importación de librerías
+#Preparación de datos
 
-```{r, echo = FALSE}
+### Importación de librerías.
+
+```{r, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
 library(sf)
-library(viridis)
 library(scales)
 library(paletteer)
+library(kableExtra)
 ```
 
-### Importación del del dataset primario
+### Importación y preparación del dataset primario.
 
--   Importación de archivo de nomenclatura de codificación para departamentos
--   Matcheamos el nombre del departamento
--   *Visualizamos los primeros registros del dataset*
+-   Importación de archivos:
 
-```{r}
+    -   Archivo principal con datos salariales por departamento
 
+    -   Códigos de departamentos junto a su nombre
+
+    -   Codificación CLAE junto al nombre del rubro correspondiente
+
+    -   Datos georreferenciados por departamento
+
+-   Luego incorporamos los datos mencionados al data frame principal (dfmain) usando la función *left_join()*
+
+
+```{r, message = FALSE, warning = FALSE}
 cod_deptos <- read_csv("./Data/diccionario_cod_depto.csv") %>% 
             select(codigo_departamento_indec, nombre_departamento_indec)
 
@@ -33,79 +43,93 @@ cod_clae <- read_csv("./Data/diccionario_clae2.csv") %>%
 
 datos_geo <- read_sf("./Data/departamentos_arg.geojson") %>% 
              select(codigo_departamento_indec, geometry) %>% 
-             mutate(codigo_departamento_indec = as.numeric(codigo_departamento_indec))
-
-#geo_caba <- read_sf("./Data/ProvinciasArgentina.geojson") %>% 
-#          filter(nombre == "Capital Federal") %>% 
-#          select(nombre, geometry) %>% 
-#          mutate(nombre= "CABA")
+             mutate(codigo_departamento_indec = as.numeric(codigo_departamento_indec)) #Usamos el as.numeric() sobre el código de dapartamento para evitar la aparición de NAs por diferencias entre strings.  
 
 dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>% 
         left_join(cod_deptos, by="codigo_departamento_indec") %>% 
         left_join(cod_clae, by="clae2") %>% 
-        left_join(datos_geo, by = "codigo_departamento_indec") %>% 
-        #mutate(geometry = ifelse(codigo_departamento_indec==2000, geo_caba[1,2], geometry)) %>% #Esta línea es la que mete CABA
+        left_join(datos_geo, by = "codigo_departamento_indec") %>%
         select(fecha, codigo_departamento_indec,nombre_departamento_indec, clae2, letra_desc, everything())
-
-
-# Observamos algunos registros de dfmain
-
-print(sample_n(dfmain, size = 10))
 
 ```
 
-### Chequeamos la presencia de missing values y de valores inválidos en el dataset.
+-   Por último, visualizamos algunos registros del dataset
+
+```{r, message = FALSE, warning = FALSE}
+kable(sample_n(dfmain, size = 10), format = "html")
+```
+
+### Exploración de datos: presencia de missing values y de valores inválidos en el dataset.
+
+-   Primero consultamos la cantidad de registros presentes en el dataset
+
+```{r, echo = FALSE}
+
+cat("Cantidad de registros: ", nrow(dfmain), "\n")
+```
+
+-   Analizamos la presencia de NAs en los diferentes campos
+
+```{r, echo = FALSE}
+print("Nas por campo:")
+colSums(is.na(dfmain))
+```
+
+-   Procedemos a borrar dichos registros por no ser significativos usando *na.omit()*
 
 ```{r}
-cat("Cantidad de registros: ", nrow(dfmain), "\n")
-
-print("NaNs por campo")
-colSums(is.na(dfmain))
-
-# Procedemos a borrar dichos registros por no ser significativos
 
 dfmain <- na.omit(dfmain)
+```
 
-#Observamos la presencia de valores inválidos o absurdos en algunos departamentos (-99)
+-   Observamos la presencia de valores inválidos o absurdos en algunos departamentos (-99)
 
+```{r, echo = FALSE}
 ejemplo <- dfmain %>% arrange(w_mean) %>% 
-  slice(1:5)
+  slice(1:5) %>% 
+  select(nombre_departamento_indec, w_mean)
 
-print(ejemplo)
+kable(ejemplo, format = "html")
+```
 
-# Eliminamos los valores negativos
+-   Eliminamos los valores negativos
 
+```{r}
 dfmain <- dfmain %>% filter(w_mean > 0)
 ```
 
-# 1. Los departamentos con mayores salarios, expresados en un mapa coroplético.
+### Preparación de datos para el primer gráfico.
 
-Obtenemos por agrupación basada en los departamentos el promedio de los salarios. Para que la muestra no este sesgada por saltos discrecionales en los salarios promedio del último período registrado (04/2023), acotamos la muestra a los registros dell último año (media de los últimos 12 registros)
+-   Chequeamos datatype de los elementos de la columna
 
--   
+```{r, echo = FALSE}
 
-```{r}
-
-# Chequeamos datatype de los elementos de la columna
 cat("Tipo de dato: ", class(dfmain$fecha), "\n")
+```
 
-# Detectamos rango de las fechas del dataset
+-   Detectamos el rango de las fechas del dataset
+
+```{r, echo = FALSE}
 
 range(dfmain$fecha)
+```
 
-# Acotamos la muestra
+-   Acotamos la muestra a los registros del último año.
 
+-   Calculamos el promedio de los últimos 12 registros a fines de obtener una medida del salario promedio por departamento que no se vea afectada por saltos dicrecionales que pudieran existir en el último período obrante (04/2023).
+
+```{r, message = FALSE, warning = FALSE}
 subdf_depto <- dfmain %>% 
                   filter(fecha > (max(fecha) - 365)) %>% 
                   group_by(codigo_departamento_indec, nombre_departamento_indec, geometry) %>% 
                   summarise(w_mean_lasty = round(mean(w_mean)))
 
-
-head(subdf_depto)
-                  
+kable(head(subdf_depto), format = "html")
 ```
 
-```{r}
+# 1. La distribución salarial por departamento, expresados en un mapa coroplético.
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 
 ggplot(subdf_depto
         , aes(geometry = geometry)) +
@@ -117,10 +141,15 @@ ggplot(subdf_depto
 
 ```
 
-### Por sector de actividad
+### Preparación de datos para el segundo gráfico.
 
-```{r}
+-   Al igual que en el caso anterior, acotamos los datos a los últimos 12 registros
 
+-   Ordenamos los promedios salariales de forma ascendente y nos quedamos con los primeros 5 registros.
+
+-   Por último, usando fct_inorder() (del paquete forcats) ordenamos los factores de forma que las columnas aparezcan en el gráfico en forma ascendente.
+
+```{r, message = FALSE, warning = FALSE}
 subdf_act_salarios <- dfmain %>% 
                   filter(fecha > (max(fecha) - 365)) %>% 
                   group_by(letra_desc) %>% 
@@ -128,26 +157,48 @@ subdf_act_salarios <- dfmain %>%
                   arrange(w_mean_lasty) %>% 
                   head(n=5) %>% 
                   mutate(letra_desc = fct_inorder(letra_desc))
+```
+
+# 2. Los 5 sectores de actividad con salarios más bajos, expresados en un gráfico de barras.
 
 
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 ggplot(data = subdf_act_salarios, aes(x = letra_desc, y = w_mean_lasty, fill = letra_desc)) +
          geom_col() +
-         scale_fill_paletteer_d("lisa::OskarSchlemmer") +
+         scale_fill_paletteer_d("PNWColors::Shuksan2") +
          labs(x = "",
               y = "Salario mensual promedio") +
          scale_x_discrete(labels = label_wrap(10)) +
-         scale_y_continuous(labels = comma) +
+         scale_y_continuous(labels = comma_format(big.mark = ".", decimal.mark = ",")) +
          theme_minimal() +
          guides(fill = "none") +
          ggtitle("Top 5 rubros con menores remuneraciones")
-
 ```
 
-```{r}
-#Chequeamos los diferentes sectores
+### Preparación de datos para el tercer gráfico.
 
-print(unique(dfmain$letra_desc))
+- Chequeamos los diferentes sectores
 
+```{r, echo = FALSE}
+
+kable(unique(dfmain$letra_desc))
+```
+
+- Nos quedamos con 4 de ellos:
+
+  - Explotación de minas y canteras
+  
+  - Servicio de transporte y almacenamiento
+  
+  - Construcción
+  
+  - Enseñanza
+
+- Agrupamos por fecha y rubro y utilizamos *summarise()* para obtener el promedio de las observaciones de todos los departamentos
+
+```{r, message = FALSE, warning = FALSE}
 subdf_act_serie <- dfmain %>% 
                 select(fecha, letra_desc, w_mean) %>% 
                 filter(letra_desc == "EXPLOTACION DE MINAS Y CANTERAS"
@@ -155,16 +206,24 @@ subdf_act_serie <- dfmain %>%
                        | letra_desc == "CONSTRUCCIÓN"
                        | letra_desc == "ENSEÑANZA") %>% 
                 group_by(fecha, letra_desc) %>% 
-                summarise(w_mean = mean(w_mean))
+                summarise(w_mean = mean(w_mean)) %>% 
+                mutate(letra_desc = fct_relevel(letra_desc, c("EXPLOTACION DE MINAS Y CANTERAS", "SERVICIO DE TRANSPORTE Y ALMACENAMIENTO", "CONSTRUCCIÓN", "ENSEÑANZA")))
+```
+
+# 3. Evolución de los salarios nominales de 4 sectores para el período 2014 - 2023, en un gráfico de líneas.
+
+
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
 
 ggplot(data = subdf_act_serie) +
-    geom_line(aes(x = fecha, y = w_mean, group = letra_desc, color = letra_desc), size = 1.10) +
+    geom_line(aes(x = fecha, y = w_mean, group = letra_desc, color = letra_desc), size = 1) +
     theme_minimal() +
-    scale_y_continuous(labels = comma) +
-    scale_color_viridis_d(labels = label_wrap(15)) +
+    scale_y_continuous(labels = comma_format(big.mark = ".", decimal.mark = ",")) +
+    scale_color_paletteer_d("PNWColors::Shuksan2",labels = label_wrap(10)) +
     ggtitle("Evolución histórica de los salarios nominales en 4 sectores") +
     labs(x = "Año", 
          y = "Salario mensual promedio",
          color = "Sector")
-
 ```
