@@ -107,7 +107,7 @@ kable_styling(kbl(ejemplo), bootstrap_options = c("striped", "hover"))
 dfmain <- dfmain %>% filter(w_mean > 0)
 ```
 
-# 1. La distribución salarial por departamento, expresados en un mapa coroplético.
+# 1. La distribución salarial por departamento, expresados en un mapa coroplético
 
 ## Preparación de datos para el *Gráfico 1*
 
@@ -160,6 +160,8 @@ ggplot(subdf_depto
 >2. El NOA es la región donde se concentran los menores salarios, no presentándose casos de regiones con altos salarios.
 >
 >3. En la Provincia de Buenos Aires, la región del AMBA concentra los mayores salarios, mientras que en el interior de la provincia rondan entre medios y bajos.
+>
+> Nótese que ciertas regiones carecen de representación gráfica según la escala (en blanco). Esto se debe a que algunas localidades específicas no contaban con información salarial o geográfica. El procedimiento para eliminar estos registros vacíos se llevó a cabo en [Exploración de datos: presencia de missing values y de valores inválidos en el dataset.].
 
 ---
 
