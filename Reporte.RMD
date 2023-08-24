@@ -2,12 +2,19 @@
 title: "Trabajo N°1"
 author: "Integrantes: Tomás Baigorria e Iván Robles Urquiza"
 date: 'Agosto 2023'
-output: html_document
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    
 ---
 
-#Preparación de datos
+# ETL y Presentación de los datos
 
-### Importación de librerías.
+## Importación de librerías.
 
 ```{r, message = FALSE, warning = FALSE}
 library(tidyverse)
@@ -19,7 +26,7 @@ library(paletteer)
 library(kableExtra)
 ```
 
-### Importación y preparación del dataset primario.
+## Importación y preparación del dataset primario.
 
 -   Importación de archivos:
 
@@ -56,10 +63,12 @@ dfmain <- read_csv("./Data/w_mean_depto_tot_emp_clae2.csv") %>%
 -   Por último, visualizamos algunos registros del dataset
 
 ```{r, message = FALSE, warning = FALSE}
-kable(sample_n(dfmain, size = 10), format = "html")
+
+kable_styling(kbl(sample_n(dfmain, size = 10)), bootstrap_options = c("striped", "hover"))
 ```
 
-### Exploración de datos: presencia de missing values y de valores inválidos en el dataset.
+
+## Exploración de datos: presencia de missing values y de valores inválidos en el dataset.
 
 -   Primero consultamos la cantidad de registros presentes en el dataset
 
@@ -71,8 +80,8 @@ cat("Cantidad de registros: ", nrow(dfmain), "\n")
 -   Analizamos la presencia de NAs en los diferentes campos
 
 ```{r, echo = FALSE}
-print("Nas por campo:")
-colSums(is.na(dfmain))
+# Nas por campo: 
+kable_styling(kbl(colSums(is.na(dfmain))), bootstrap_options = c("striped", "hover"))
 ```
 
 -   Procedemos a borrar dichos registros por no ser significativos usando *na.omit()*
@@ -89,7 +98,7 @@ ejemplo <- dfmain %>% arrange(w_mean) %>%
   slice(1:5) %>% 
   select(nombre_departamento_indec, w_mean)
 
-kable(ejemplo, format = "html")
+kable_styling(kbl(ejemplo), bootstrap_options = c("striped", "hover"))
 ```
 
 -   Eliminamos los valores negativos
@@ -98,7 +107,9 @@ kable(ejemplo, format = "html")
 dfmain <- dfmain %>% filter(w_mean > 0)
 ```
 
-### Preparación de datos para el primer gráfico.
+# 1. La distribución salarial por departamento, expresados en un mapa coroplético.
+
+## Preparación de datos para el *Gráfico 1*
 
 -   Chequeamos datatype de los elementos de la columna
 
@@ -114,9 +125,10 @@ cat("Tipo de dato: ", class(dfmain$fecha), "\n")
 range(dfmain$fecha)
 ```
 
+
 -   Acotamos la muestra a los registros del último año.
 
--   Calculamos el promedio de los últimos 12 registros a fines de obtener una medida del salario promedio por departamento que no se vea afectada por saltos dicrecionales que pudieran existir en el último período obrante (04/2023).
+-   Calculamos el promedio de los últimos 12 registros a fines de obtener una medida del salario promedio por departamento que no se vea sesgada por saltos discretos que pudieran existir en el último período obrante (04/2023).
 
 ```{r, message = FALSE, warning = FALSE}
 subdf_depto <- dfmain %>% 
@@ -124,10 +136,10 @@ subdf_depto <- dfmain %>%
                   group_by(codigo_departamento_indec, nombre_departamento_indec, geometry) %>% 
                   summarise(w_mean_lasty = round(mean(w_mean)))
 
-kable(head(subdf_depto), format = "html")
+kable_styling(kbl(head(subdf_depto)), bootstrap_options = c("striped", "hover"))
 ```
 
-# 1. La distribución salarial por departamento, expresados en un mapa coroplético.
+### *Gráfico 1*
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 
@@ -141,7 +153,19 @@ ggplot(subdf_depto
 
 ```
 
-### Preparación de datos para el segundo gráfico.
+> La representación geográfica de los datos expone cierta tendencia por regiones que permite proponer diferentes conclusiones: 
+>
+>1. La región patagónica presenta un salario promedio alto; con algunas regiones aisladas como excepción, que presentan salarios medios y bajos.
+>
+>2. El NOA es la región donde se concentran los menores salarios, no presentándose casos de regiones con altos salarios.
+>
+>3. En la Provincia de Buenos Aires, la región del AMBA concentra los mayores salarios, mientras que en el interior de la provincia rondan entre medios y bajos.
+
+---
+
+# 2. Los 5 sectores de actividad con salarios más bajos, expresados en un gráfico de barras
+
+## Preparación de datos para el *Gráfico 2*
 
 -   Al igual que en el caso anterior, acotamos los datos a los últimos 12 registros
 
@@ -159,9 +183,7 @@ subdf_act_salarios <- dfmain %>%
                   mutate(letra_desc = fct_inorder(letra_desc))
 ```
 
-# 2. Los 5 sectores de actividad con salarios más bajos, expresados en un gráfico de barras.
-
-
+## *Gráfico 2*
 
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -177,26 +199,33 @@ ggplot(data = subdf_act_salarios, aes(x = letra_desc, y = w_mean_lasty, fill = l
          ggtitle("Top 5 rubros con menores remuneraciones")
 ```
 
-### Preparación de datos para el tercer gráfico.
+> En esta representación, se exponen aquellos grandes sectores con los salarios más bajos del mercado. Siendo los __Servicios de alojamiento y servicios de comida__ el de menor remuneración neta.
+
+# 3. Evolución de los salarios nominales de 4 sectores para el período 2014 - 2023, en un gráfico de líneas.
+
+## Preparación de datos para el *Gráfico 3*
 
 - Chequeamos los diferentes sectores
 
 ```{r, echo = FALSE}
 
-kable(unique(dfmain$letra_desc))
+kable_styling(kbl(unique(dfmain$letra_desc)), bootstrap_options = c("striped", "hover"))
+
 ```
+
+
 
 - Nos quedamos con 4 de ellos:
 
-  - Explotación de minas y canteras
+  1. Explotación de minas y canteras
   
-  - Servicio de transporte y almacenamiento
+  2. Servicio de transporte y almacenamiento
   
-  - Construcción
+  3. Construcción
   
-  - Enseñanza
+  4. Enseñanza
 
-- Agrupamos por fecha y rubro y utilizamos *summarise()* para obtener el promedio de las observaciones de todos los departamentos
+ **Agrupamos por fecha y rubro y utilizamos _summarise()_ para obtener el promedio de las observaciones de todos los departamentos**
 
 ```{r, message = FALSE, warning = FALSE}
 subdf_act_serie <- dfmain %>% 
@@ -210,9 +239,7 @@ subdf_act_serie <- dfmain %>%
                 mutate(letra_desc = fct_relevel(letra_desc, c("EXPLOTACION DE MINAS Y CANTERAS", "SERVICIO DE TRANSPORTE Y ALMACENAMIENTO", "CONSTRUCCIÓN", "ENSEÑANZA")))
 ```
 
-# 3. Evolución de los salarios nominales de 4 sectores para el período 2014 - 2023, en un gráfico de líneas.
-
-
+## *Gráfico 3*
 
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -227,3 +254,11 @@ ggplot(data = subdf_act_serie) +
          y = "Salario mensual promedio",
          color = "Sector")
 ```
+
+> El gráfico permite una comparación nominal entre los seectores seleccionados. La tendencia es creciente para todos ellos aunque la interpretación que de aquí pueda partir deberá contemplar el sesgo de la nominalidad, en consideración del régimen de alta inflación vigente en la economía. Concluímos: 
+>
+>1. El sector de __Explotación de minas y canteras__ promedia los mayores salarios y __Enseñanza__ los menores.
+>
+>2. La tendencia alcista es generalizada, mas no implica en sí misma un incremento del salario real. La asociamos _prima facie_ al fenómeno inflacionario. 
+>
+>3. En términos de la nominalidad, los salarios suben de de forma exponencial a lo largo de la serie. 
